@@ -5,16 +5,26 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688?logo=fastapi)](https://fastapi.tiangolo.com/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker)](https://www.docker.com/)
 [![License](https://img.shields.io/badge/License-MIT-purple.svg)](LICENSE)
-[![Demo](https://img.shields.io/badge/Walkthrough-45s%20Loom%20Demo-red?logo=loom)](https://www.loom.com/share/leadpulse-pipeline-demo)
+[![Demo](https://img.shields.io/badge/Walkthrough-Live%20Demo%20Recording-success?logo=playwright)](assets/demo.mp4)
 
 An enterprise-ready, webhook-triggered scraping, deduplication, and synchronization pipeline built with **Python**, **Async Playwright**, **FastAPI**, **Google Sheets API**, **Slack Webhooks**, and **Docker**.
 
 ---
 
-## 📺 45-Second End-to-End Walkthrough
+## 📺 Live End-to-End Walkthrough
 
-> **[▶️ Watch 45-Second Demo Walkthrough: Webhook Trigger → Live Deduplication → Google Sheets & Slack Sync](https://www.loom.com/share/leadpulse-pipeline-demo)**  
-> *(Triggering `/webhook/trigger` → Async Playwright crawling live brokerages with asset blocking → SQLite multi-factor deduplication catching duplicates live → Clean rows appending into Google Sheets + interactive Slack Block Kit alert cards)*
+![LeadPulse Live Demo Walkthrough](assets/demo.gif)
+
+<p align="center">
+  <em>(1) Webhook Trigger (HTTP 202 Accepted) &rarr; (2) Live Async Playwright Crawling &amp; Deduplication &rarr; (3) Clean Rows Synced to Google Sheets &rarr; (4) Interactive Slack Alerts</em>
+</p>
+
+<details>
+<summary>▶️ <b>Click here to view / download high-definition MP4 recording</b></summary>
+
+The raw 60fps MP4 recording is available directly in the repository: [`assets/demo.mp4`](assets/demo.mp4).
+
+</details>
 
 ```
 [Webhook Trigger: Zapier/cURL] 
