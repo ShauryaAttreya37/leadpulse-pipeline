@@ -43,6 +43,25 @@ async def test_ingest_lead_webhook():
 
 
 @pytest.mark.asyncio
+async def test_trigger_scraping_webhook_accepted():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        req_payload = {
+            "query": "Commercial Real Estate",
+            "location": "Austin, TX",
+            "max_pages": 1,
+            "use_mock": True,
+            "enrich_contacts": False
+        }
+        resp = await client.post("/webhook/trigger", json=req_payload)
+        assert resp.status_code == 202
+        data = resp.json()
+        assert data["status"] == "queued"
+        assert "job_id" in data
+        assert "/jobs/" in data["poll_url"]
+
+
+@pytest.mark.asyncio
 async def test_stats_and_leads_endpoints():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:

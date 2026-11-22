@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, BackgroundTasks, HTTPException, Header, Query, Request
+from fastapi import FastAPI, BackgroundTasks, HTTPException, Header, Query, Request, status
 from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -123,6 +123,7 @@ async def execute_scraping_pipeline(job_id: str, request: ScrapeJobRequest):
             location=request.location,
             max_pages=request.max_pages,
             target_url=request.target_url,
+            use_mock=request.use_mock,
             enrich_contacts=request.enrich_contacts
         )
 
@@ -188,6 +189,21 @@ async def execute_scraping_pipeline(job_id: str, request: ScrapeJobRequest):
 # API ENDPOINTS
 # ==========================================
 
+def verify_api_key(
+    x_api_key: Optional[str] = Header(None, alias="X-API-Key"),
+    x_webhook_token: Optional[str] = Header(None, alias="X-Webhook-Token"),
+) -> None:
+    """Verifies X-API-Key or X-Webhook-Token if API_KEY is configured in settings."""
+    expected_key = settings.API_KEY or settings.WEBHOOK_SECRET_TOKEN
+    if expected_key:
+        provided = x_api_key or x_webhook_token
+        if not provided or provided != expected_key:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Unauthorized: Invalid or missing X-API-Key header. Provide a valid key to access webhook endpoints."
+            )
+
+
 @app.get("/health", tags=["System"])
 async def health_check():
     """System health check and configuration verification."""
@@ -196,24 +212,26 @@ async def health_check():
         "app": settings.APP_NAME,
         "version": "1.0.0",
         "playwright_headless": settings.PLAYWRIGHT_HEADLESS,
+        "api_key_auth_enabled": bool(settings.API_KEY or settings.WEBHOOK_SECRET_TOKEN),
         "slack_webhook_configured": bool(settings.SLACK_WEBHOOK_URL),
         "google_sheets_configured": bool(settings.GOOGLE_SERVICE_ACCOUNT_FILE),
         "simulation_fallback_active": settings.ENABLE_SIMULATION_FALLBACK
     }
 
 
-@app.post("/webhook/trigger", response_model=ScrapeJobResponse, tags=["Webhooks"])
+@app.post("/webhook/trigger", response_model=ScrapeJobResponse, status_code=status.HTTP_202_ACCEPTED, tags=["Webhooks"])
 async def trigger_scraping_webhook(
     request: ScrapeJobRequest,
     background_tasks: BackgroundTasks,
-    x_webhook_token: Optional[str] = Header(None)
+    x_api_key: Optional[str] = Header(None, alias="X-API-Key"),
+    x_webhook_token: Optional[str] = Header(None, alias="X-Webhook-Token")
 ):
     """
     Webhook Receiver: Triggers an autonomous scraping and deduplication job on-demand.
-    Can be invoked via Zapier, Make, CRON, or internal systems.
+    Returns HTTP 202 Accepted with job_id immediately and executes Playwright in background.
+    Protected by X-API-Key header when API_KEY is configured in .env.
     """
-    if settings.WEBHOOK_SECRET_TOKEN and x_webhook_token != settings.WEBHOOK_SECRET_TOKEN:
-        raise HTTPException(status_code=401, detail="Invalid webhook authentication token.")
+    verify_api_key(x_api_key=x_api_key, x_webhook_token=x_webhook_token)
 
     job_id = uuid.uuid4().hex[:12]
     JOBS[job_id] = {
@@ -255,12 +273,17 @@ async def get_job_status(job_id: str):
 async def ingest_lead_webhook(
     lead: LeadCreate,
     sync_to_sheets: bool = True,
-    notify_slack: bool = True
+    notify_slack: bool = True,
+    x_api_key: Optional[str] = Header(None, alias="X-API-Key"),
+    x_webhook_token: Optional[str] = Header(None, alias="X-Webhook-Token")
 ):
     """
     Webhook Ingestion: Ingests an individual lead directly (from Zapier, Typeform, or external CRM)
     for instant multi-factor deduplication, Google Sheets sync, and Slack notification.
+    Protected by X-API-Key header when API_KEY is configured in .env.
     """
+    verify_api_key(x_api_key=x_api_key, x_webhook_token=x_webhook_token)
+
     deduper: LeadDeduper = getattr(app.state, "deduper", None) or get_deduper()
     sheets_client: GoogleSheetsClient = getattr(app.state, "sheets_client", None) or get_sheets_client()
     slack_notifier: SlackNotifier = getattr(app.state, "slack_notifier", None) or get_slack_notifier()

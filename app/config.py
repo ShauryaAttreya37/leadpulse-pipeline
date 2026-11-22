@@ -35,8 +35,10 @@ class Settings(BaseSettings):
     # If credentials for Slack or Google Sheets are absent, fallback to local mirror & formatted terminal logs
     ENABLE_SIMULATION_FALLBACK: bool = True
     
-    # Optional Webhook Security Token
-    WEBHOOK_SECRET_TOKEN: Optional[str] = None
+    # Webhook Security Header Authentication
+    # Required in production: clients must pass header `X-API-Key: <API_KEY>`
+    API_KEY: Optional[str] = None
+    WEBHOOK_SECRET_TOKEN: Optional[str] = None  # Kept for backward compatibility
 
     model_config = SettingsConfigDict(
         env_file=".env",

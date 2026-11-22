@@ -139,13 +139,14 @@ async def test_job_not_found_returns_404():
 async def test_webhook_token_auth_edge_case():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        # Simulate secret token required
-        settings.WEBHOOK_SECRET_TOKEN = "super_secure_webhook_token_999"
+        # Simulate API Key required
+        settings.API_KEY = "live_prod_api_key_999"
 
         payload = {
             "query": "Retail Brokerages",
             "location": "Dallas, TX",
-            "max_pages": 1
+            "max_pages": 1,
+            "use_mock": True
         }
         # 1. Missing header -> 401
         resp_no_token = await client.post("/webhook/trigger", json=payload)
@@ -155,21 +156,29 @@ async def test_webhook_token_auth_edge_case():
         resp_wrong = await client.post(
             "/webhook/trigger",
             json=payload,
-            headers={"X-Webhook-Token": "wrong_token"}
+            headers={"X-API-Key": "wrong_key"}
         )
         assert resp_wrong.status_code == 401
 
-        # 3. Valid header -> 200
+        # 3. Valid X-API-Key header -> 202 Accepted
         resp_valid = await client.post(
             "/webhook/trigger",
             json=payload,
-            headers={"X-Webhook-Token": "super_secure_webhook_token_999"}
+            headers={"X-API-Key": "live_prod_api_key_999"}
         )
-        assert resp_valid.status_code == 200
+        assert resp_valid.status_code == 202
         assert resp_valid.json()["status"] == "queued"
 
-        # Reset token
-        settings.WEBHOOK_SECRET_TOKEN = None
+        # 4. Backward compatible X-Webhook-Token header -> 202 Accepted
+        resp_compat = await client.post(
+            "/webhook/trigger",
+            json=payload,
+            headers={"X-Webhook-Token": "live_prod_api_key_999"}
+        )
+        assert resp_compat.status_code == 202
+
+        # Reset key
+        settings.API_KEY = None
 
 
 @pytest.mark.asyncio

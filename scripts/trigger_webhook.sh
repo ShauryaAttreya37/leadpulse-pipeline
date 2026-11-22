@@ -3,19 +3,21 @@
 # LeadPulse Webhook Trigger & API Helper Script
 # ==============================================================================
 BASE_URL="http://localhost:8000"
+API_KEY="${API_KEY:-${WEBHOOK_SECRET_TOKEN:-}}"
 
 echo "=== 1. Health Check ==="
 curl -s -X GET "$BASE_URL/health" | jq . || curl -s -X GET "$BASE_URL/health"
 echo -e "\n"
 
-echo "=== 2. Triggering Autonomous Scraping Webhook (Background Task) ==="
+echo "=== 2. Triggering Autonomous Scraping Webhook (HTTP 202 Accepted Background Task) ==="
 JOB_RESP=$(curl -s -X POST "$BASE_URL/webhook/trigger" \
   -H "Content-Type: application/json" \
+  ${API_KEY:+-H "X-API-Key: $API_KEY"} \
   -d '{
     "target": "real_estate",
     "query": "Commercial Real Estate Agencies",
     "location": "Austin, TX",
-    "max_pages": 2,
+    "max_pages": 1,
     "enrich_contacts": true,
     "sync_to_sheets": true,
     "notify_slack": true

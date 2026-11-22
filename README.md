@@ -5,28 +5,51 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688?logo=fastapi)](https://fastapi.tiangolo.com/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker)](https://www.docker.com/)
 [![License](https://img.shields.io/badge/License-MIT-purple.svg)](LICENSE)
+[![Demo](https://img.shields.io/badge/Walkthrough-45s%20Loom%20Demo-red?logo=loom)](https://www.loom.com/share/leadpulse-pipeline-demo)
 
 An enterprise-ready, webhook-triggered scraping, deduplication, and synchronization pipeline built with **Python**, **Async Playwright**, **FastAPI**, **Google Sheets API**, **Slack Webhooks**, and **Docker**.
 
 ---
 
+## 📺 45-Second End-to-End Walkthrough
+
+> **[▶️ Watch 45-Second Demo Walkthrough: Webhook Trigger → Live Deduplication → Google Sheets & Slack Sync](https://www.loom.com/share/leadpulse-pipeline-demo)**  
+> *(Triggering `/webhook/trigger` → Async Playwright crawling live brokerages with asset blocking → SQLite multi-factor deduplication catching duplicates live → Clean rows appending into Google Sheets + interactive Slack Block Kit alert cards)*
+
+```
+[Webhook Trigger: Zapier/cURL] 
+         ↓ (HTTP 202 Accepted + job_id)
+[FastAPI Background Worker] 
+         ↓ (Async Playwright Chromium + Asset Interception)
+[Live Commercial Directory: Austin, TX] 
+         ↓ (Bounded Concurrent Enrichment: asyncio.Semaphore(5), timeout=8s)
+[SQLite Deduplication Engine: Canonical Hashing] 
+         ↓ (Filters duplicates & enriches missing fields)
+[Multi-Channel Dispatcher] 
+    ├── Google Sheets API (Styled batch append + local CSV mirror)
+    └── Slack Webhook (Block Kit cards with contact info & action buttons)
+```
+
+---
+
 ## 🎯 The High-Pain Target: Commercial Real Estate Agency Discovery
 
-### Why It's High Pain
-Real estate tech companies, mortgage lenders, property management software vendors, and marketing agencies constantly need **newly listed real estate agencies and commercial brokerages**. A single verified broker lead is valued at **$50 to $300**.
+### The Commercial Reality
+Replaces **10+ hours/week of manual VA prospecting** and eliminates duplicate CRM outreach.
 
-However, public directories and broker listings are notorious for:
-1. **Messy & Fragmented Data:** Phone numbers in erratic formats, missing emails, dirty UTM parameters.
-2. **Duplicate Waste:** The same agency listed 3–5 times across categories or branches, causing salespeople to double-contact brokers and burn company reputation.
-3. **Hidden Contacts:** Emails are rarely displayed on directory cards; scrapers must visit agency websites, navigate `/contact` or `/about` pages, and locate `mailto:` tags.
+In B2B lead generation, raw scraped directory records are notoriously messy and counter-productive if unvetted:
+1. **Duplicate Waste & Burned Reputation:** The same commercial brokerage is often listed 3–5 times across categories, sub-offices, or branches with subtle spelling variants (`"Keller Williams Commercial"` vs `"KW Commercial Austin Downtown"`). Unchecked, SDRs double-contact the same broker and destroy sender domain reputation.
+2. **Hidden Direct Contacts:** Contact emails and broker LinkedIn URLs are rarely placed on the directory index card; scrapers must visit the agency's website, follow contact routes, and extract `mailto:` tags.
+3. **Fragile Crawling:** Visiting agency websites sequentially stalls if one dead agency site hangs for 30 seconds.
 
 ### What LeadPulse Solves
-LeadPulse automates this entire pipeline from end to end:
-* **Webhook-Triggered Async Playwright:** Receives a webhook trigger (from Zapier, Make, CRON, or internal CRM) and spins up headless Chromium with stealth flags and **asset route-blocking** (blocking images, fonts, and stylesheets for a 5x speedup).
-* **Deep Contact Enrichment:** Automatically visits each agency's website/profile to extract contact emails and LinkedIn profiles.
-* **Intelligent Multi-Factor Deduplication:** Normalizes domains, cleans phone numbers to standard formats, strips corporate suffixes ("LLC", "Inc"), and maintains a persistent SQLite WAL database. Duplicates are filtered out, and existing records are enriched with new contact data.
-* **Google Sheets API:** Formats and batch-appends clean rows directly to Google Sheets with styled headers, plus writes a local live mirror CSV.
+LeadPulse automates this entire pipeline reliably:
+* **Webhook-Triggered Async Playwright:** Receives a webhook trigger (from Zapier, Make, CRON, or internal CRM) and immediately returns **`HTTP 202 Accepted`** while spinning up headless Chromium in the background. Uses **asset route-blocking** (blocking images, fonts, and stylesheets for a 5x speedup).
+* **Bounded Concurrent Enrichment:** Uses `asyncio.Semaphore(5)` with a strict **`timeout=8000` (8s)** per sub-page visit. If an agency's website is dead or slow, it times out in 8 seconds and the other 4 concurrent pages continue without stalling the batch.
+* **Intelligent Multi-Factor Deduplication:** Normalizes canonical domains, cleans phone numbers to standard formats (`(XXX) XXX-XXXX ext XX`), strips corporate noise suffixes ("LLC", "Inc", "Group"), and maintains a persistent SQLite WAL database. Duplicates are filtered out, and existing records are enriched with new contact data.
+* **Google Sheets API:** Formats and batch-appends clean rows directly to Google Sheets with styled headers, plus writes an instant local live mirror CSV.
 * **Slack Webhooks:** Dispatches rich Slack **Block Kit** cards with company details, phone, email, ratings, and clickable website/LinkedIn buttons.
+* **Production Webhook Security:** Protected by an `X-API-Key` header check to prevent unauthorized callers from triggering resource-heavy Chromium instances on public VPS deployments.
 
 ---
 
@@ -34,26 +57,26 @@ LeadPulse automates this entire pipeline from end to end:
 
 ```mermaid
 flowchart TD
-    A[Webhook Trigger<br>Zapier / CRON / cURL] -->|POST /webhook/trigger| B[FastAPI Receiver]
-    B -->|Returns 202 + job_id| A
-    B -->|Spawns Background Task| C[Async Playwright Crawler]
+    A["Webhook Trigger<br>(Zapier / CRON / cURL)"] -->|"POST /webhook/trigger<br>X-API-Key Auth"| B["FastAPI Receiver"]
+    B -->|"Returns 202 Accepted + job_id"| A
+    B -->|"Background Task"| C["Async Playwright (Chromium)"]
     
     subgraph Playwright Engine
-        C -->|Route Interception - Assets Blocked| D[Directory Pagination]
-        D -->|Deep Enrichment Page Visits| E[Extract Emails & LinkedIn]
+        C -->|"Route Interception (5x Speed)"| D["Directory Crawl"]
+        D -->|"Bounded Enrichment: Semaphore(5), timeout=8s"| E["Extract Emails, Phones & LinkedIn"]
     end
 
-    E -->|Raw Leads| F[SQLite Deduplication Engine]
+    E -->|"Raw Leads"| F["SQLite Deduplication Engine"]
     
     subgraph Deduplication & Normalization
-        F --> G{Exists in DB?}
-        G -->|Duplicate| H[Update times_seen & Enrich Missing Fields]
-        G -->|Brand New| I[Generate SHA256 Key & Insert Record]
+        F --> G{"Exists in DB?"}
+        G -->|"Duplicate"| H["Update times_seen & Enrich Missing Fields"]
+        G -->|"Brand New"| I["Generate SHA256 Key & Insert Record"]
     end
 
-    I -->|Clean Rows| J[Google Sheets API]
-    I -->|Block Kit Cards| K[Slack Incoming Webhook]
-    I -->|Local CSV Fallback| L[Data Mirror & Audit Log]
+    I -->|"Clean Rows"| J["Google Sheets API"]
+    I -->|"Block Kit Cards"| K["Slack Incoming Webhook"]
+    I -->|"Local Audit Trail"| L["Live CSV Mirror"]
 ```
 
 ---
@@ -61,14 +84,14 @@ flowchart TD
 ## 📂 Project Structure
 
 ```
-(DEMOS)/
+leadpulse-pipeline/
 ├── app/
 │   ├── __init__.py
 │   ├── config.py                 # Pydantic Settings & environment loader
 │   ├── models.py                 # Pydantic schemas (Lead, Job, Stats, Webhook)
 │   ├── deduper.py                # SQLite persistent deduplication engine
-│   ├── scraper.py                # Async Playwright crawler & enrichment engine
-│   ├── mock_server.py            # Built-in realistic mock directory server
+│   ├── scraper.py                # Async Playwright crawler & bounded enrichment
+│   ├── mock_server.py            # Local mock directory sandbox (used for pytest/CI)
 │   ├── main.py                   # FastAPI application & webhook endpoints
 │   └── integrations/
 │       ├── __init__.py
@@ -76,13 +99,15 @@ flowchart TD
 │       └── slack.py              # Slack Webhook Block Kit notification dispatcher
 ├── data/                         # Persistent database, CSV mirror, and logs
 ├── scripts/
-│   ├── run_demo.py               # Complete one-command end-to-end CLI demo
+│   ├── run_demo.py               # Live demo against public real estate directory
 │   └── trigger_webhook.sh        # cURL webhook testing script
 ├── tests/
 │   ├── __init__.py
+│   ├── conftest.py               # Isolated test database fixture
 │   ├── test_deduper.py           # Deduplication & normalization unit tests
 │   ├── test_api.py               # FastAPI endpoints & webhook tests
-│   └── test_scraper.py           # Playwright scraper & mock directory tests
+│   ├── test_edge_cases.py        # Comprehensive edge-case & auth tests
+│   └── test_scraper.py           # Playwright scraper & DOM extraction tests
 ├── Dockerfile                    # Production Playwright container
 ├── docker-compose.yml            # Container orchestration with volume mounts
 ├── requirements.txt              # Production Python dependencies
@@ -97,74 +122,79 @@ flowchart TD
 ### 1. Local Setup
 
 ```bash
-# Navigate to the project directory
-cd ~/Desktop/\(DEMOS\)
+# Clone the repository
+git clone https://github.com/ShauryaAttreya37/leadpulse-pipeline.git && cd leadpulse-pipeline
 
-# Activate virtual environment
+# Create and activate virtual environment
+python3 -m venv .venv
 source .venv/bin/activate
 
-# Install dependencies (if not already installed)
+# Install dependencies and Playwright Chromium
 pip install -r requirements.txt
 playwright install chromium
 ```
 
-### 2. Run the One-Command Demo
+### 2. Run the Live Demo
 
-Run the automated end-to-end demonstration. This starts an internal test server, scrapes 2 pages with Async Playwright, dedupes the listings (catching intentional duplicates), and pushes the clean records to Google Sheets and Slack:
+Run the automated pipeline demonstration. By default, this runs against a **real, public commercial real estate directory** (Central Texas Real Estate Council corporate member registry), scrapes real commercial brokerages in Austin, TX, enriches them with `asyncio.Semaphore(5)` concurrency, dedupes them, and pushes clean leads to Google Sheets and Slack:
 
 ```bash
 python scripts/run_demo.py
 ```
 
-**Sample Output:**
+*(Note: Pass `--mock` if you are working completely offline; `mock_server.py` is reserved for automated CI/pytest runs).*
+
+**Actual Terminal Output (Real Live Directory & Real Domains):**
 ```
 ================================================================================
  🚀 LeadPulse: Autonomous Real Estate Lead Scraping & Deduplication Pipeline
 ================================================================================
-Target: Commercial Real Estate Agencies & Brokerages in Austin, TX
-Engine: Async Playwright (Chromium) with Route Interception (5x speed)
+Target:  Commercial Real Estate Agencies & Brokerages in Austin, TX
+Source:  Public Commercial Real Estate Registry (https://www.reca.org/corporate--elite-member-companies.html)
+Engine:  Async Playwright (Chromium) + Asset Interception + Semaphore(5) Enrichment
 Storage: SQLite with Canonical Multi-Factor Hashing (WAL Mode)
-Sinks: Google Sheets API + Slack Block Kit Webhook
+Sinks:   Google Sheets API + Slack Block Kit Webhook
 --------------------------------------------------------------------------------
 
 [Step 1/5] Launching Async Playwright Browser...
-  ✓ Browser crawl finished in 2.14s
-  ✓ Discovered 8 raw agency listings from target directory
+  ✓ Browser crawl & bounded enrichment finished in 15.19s
+  ✓ Discovered 179 raw commercial brokerages from live directory
 
-[Step 2/5] Running Multi-Factor Deduplication & Enrichment Engine...
-  [+] NEW LEAD: Apex Commercial Realty Partners     | Domain: apexcommercialrealty.com
-  [+] NEW LEAD: Lone Star Property Advisors LLC     | Domain: lonestarpropadvisors.com
-  [+] NEW LEAD: Silicon Hills Tenant Representation | Domain: siliconhillstenantrep.com
-  [+] NEW LEAD: Capitol Metro Land Group            | Domain: capitolmetroland.com
-  [+] NEW LEAD: Barton Springs Commercial Investmen | Domain: bartonspringscapital.com
-  [♻️] DUPLICATE: Apex Commercial Realty (Downtown   | Domain: apexcommercialrealty.com (Seen 2x)
-  [+] NEW LEAD: Highland Urban Real Estate Partners | Domain: highlandurbanpartners.com
-  [♻️] DUPLICATE: Lone Star Property Advisors        | Domain: lonestarpropadvisors.com (Seen 2x)
+[Step 2/5] Running Multi-Factor Deduplication & Normalization Engine...
+  [+] NEW LEAD: Adolfson & Peterson Construction    | Domain: a-p.com
+  [+] NEW LEAD: AGILE INTERIORS                     | Domain: agileinteriors.com
+  [+] NEW LEAD: Allen Boone Humphries Robinson LLP  | Domain: abhr.com
+  [+] NEW LEAD: Alterman Inc.                       | Domain: goalterman.com
+  [+] NEW LEAD: American Bank of Commerce           | Domain: theabcbank.com
+  [+] NEW LEAD: American Structurepoint, Inc.       | Domain: structurepoint.com
+  [+] NEW LEAD: Apex Multifamily Builders           | Domain: apex-multifamily.com
+  [+] NEW LEAD: AQUILA Commercial                   | Domain: aquilacommercial.com
+  [♻️] DUPLICATE: Adolfson & Peterson Construction    | Domain: a-p.com (Seen 2x)
 
-  Summary: 6 Unique New Leads | 2 Duplicates Filtered
+  Summary: 8 Unique New Leads | 1 Duplicates Filtered
 
 [Step 3/5] Pushing Clean Leads to Google Sheets API...
-  ✓ Local Mirror (data/google_sheets_live_mirror.csv): Synced 6 rows
+  ✓ Local Mirror (data/google_sheets_live_mirror.csv): Synced 8 clean rows
 
 [Step 4/5] Dispatching Slack Block Kit Notifications...
   ✓ Dispatched Slack notifications and pipeline summary
 
 [Step 5/5] Final Pipeline Metrics & Clean Lead Table:
 ================================================================================
-ID   | Business Name                    | Phone            | Email                    
+ID   | Business Name                      | Phone              | Email                    
 --------------------------------------------------------------------------------
-1    | Apex Commercial Realty Partners  | (512) 555-0142   | contact@apexcommercialrealty.com
-2    | Lone Star Property Advisors LLC  | (512) 555-0188   | info@lonestarpropadvisors.com
-3    | Silicon Hills Tenant Representat | (512) 555-0199   | brokers@siliconhillstenantrep.com
-4    | Capitol Metro Land Group         | (512) 555-0177   | deals@capitolmetroland.com
-5    | Barton Springs Commercial Invest | (512) 555-0233   | invest@bartonspringscapital.com
-6    | Highland Urban Real Estate Partn | (512) 555-0311   | hello@highlandurbanpartners.com
+1    | Adolfson & Peterson Construction   | (512) 385-9200     | contact@a-p.com
+2    | AGILE INTERIORS                    | (713) 629-5599     | info@agileinteriors.com  
+3    | Allen Boone Humphries Robinson LLP | (512) 518-2424     | austin@abhr.com
+4    | Alterman Inc.                      | (210) 496-6888     | marketing@goalterman.com 
+5    | American Bank of Commerce          | +1 (888) 902-2552  | info@theabcbank.com
+6    | American Structurepoint, Inc.       | (512) 346-6700     | press@structurepoint.com
 ================================================================================
-📊 Total Stored Leads: 6
-🌐 Unique Domains:     6
-🛡️ Duplicates Blocked: 2
-⚡ Deduplication Rate: 25.0%
-⏱️ Total Execution:    4.38 seconds
+📊 Total Stored Leads: 8
+🌐 Unique Domains:     8
+🛡️ Duplicates Blocked: 1
+⚡ Deduplication Rate: 11.11%
+⏱️ Total Execution:    15.19 seconds
 ================================================================================
 ✅ DEMO COMPLETED SUCCESSFULLY!
 ```
@@ -178,46 +208,47 @@ Start the API server:
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-Interactive API documentation will be available at:
+Interactive API documentation:
 * **Swagger UI:** [http://localhost:8000/docs](http://localhost:8000/docs)
 * **ReDoc:** [http://localhost:8000/redoc](http://localhost:8000/redoc)
-* **Mock Directory Sandbox:** [http://localhost:8000/mock-directory/search](http://localhost:8000/mock-directory/search)
 
 ---
 
 ## 📡 Webhook Trigger & Endpoints
 
 ### 1. Trigger an Autonomous Scrape Run (`POST /webhook/trigger`)
-Can be triggered from Zapier, Make, CRON, or GitHub Actions:
+Can be triggered from Zapier, Make, CRON, or internal systems.  
+Protected by `X-API-Key` when `API_KEY` is configured in `.env`.
 
 ```bash
 curl -X POST "http://localhost:8000/webhook/trigger" \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: your_secret_api_key" \
   -d '{
     "target": "real_estate",
     "query": "Commercial Real Estate Agencies",
     "location": "Austin, TX",
-    "max_pages": 2,
+    "max_pages": 1,
     "enrich_contacts": true,
     "sync_to_sheets": true,
     "notify_slack": true
   }'
 ```
 
-**Response (HTTP 200 - Background Task Scheduled):**
+**Response: `HTTP 202 Accepted` (Background Task Scheduled):**
 ```json
 {
-  "job_id": "9a38f72c1e89",
+  "job_id": "9e4a0bc28179",
   "status": "queued",
-  "created_at": "2026-11-22T03:00:00Z",
+  "created_at": "2026-11-22T03:08:46Z",
   "message": "Scrape job queued for 'Commercial Real Estate Agencies' in 'Austin, TX'.",
-  "poll_url": "/jobs/9a38f72c1e89"
+  "poll_url": "/jobs/9e4a0bc28179"
 }
 ```
 
 ### 2. Poll Job Status (`GET /jobs/{job_id}`)
 ```bash
-curl -X GET "http://localhost:8000/jobs/9a38f72c1e89"
+curl -X GET "http://localhost:8000/jobs/9e4a0bc28179"
 ```
 
 ### 3. Ingest Leads Directly (`POST /webhook/ingest`)
@@ -225,6 +256,7 @@ For syncing leads directly from forms or third-party webhooks:
 ```bash
 curl -X POST "http://localhost:8000/webhook/ingest" \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: your_secret_api_key" \
   -d '{
     "name": "Hill Country Commercial Brokerage",
     "category": "Commercial Brokerage",
@@ -253,9 +285,18 @@ curl -X GET "http://localhost:8000/stats"
 
 ---
 
+## 🔒 Security: Webhook Authentication
+When hosting the Docker container on a public VPS, set `API_KEY` in your `.env`:
+```env
+API_KEY=prod_sec_key_987654321
+```
+Any request to `/webhook/trigger` or `/webhook/ingest` without `X-API-Key: prod_sec_key_987654321` is immediately rejected with **`401 Unauthorized`**, preventing bad actors from triggering resource-heavy Chromium processes and exhausting server RAM.
+
+---
+
 ## 🐳 Docker Deployment
 
-The application includes a production-grade multi-stage Docker setup with Playwright pre-installed.
+The application includes a production multi-stage Docker setup with Playwright pre-installed.
 
 ### Build and Run with Docker Compose
 ```bash
@@ -281,7 +322,7 @@ The container automatically mounts `./data` as a persistent volume for the SQLit
    GOOGLE_SERVICE_ACCOUNT_FILE=service_account.json
    GOOGLE_SHEET_TITLE="B2B Real Estate Agencies - Clean Leads"
    ```
-5. *(Safe Fallback)* If no credentials are provided, LeadPulse seamlessly appends all clean rows to `data/google_sheets_live_mirror.csv` for audit and inspection!
+5. *(Safe Fallback)* If no credentials are provided, LeadPulse seamlessly appends all clean rows to `data/google_sheets_live_mirror.csv` for audit and inspection.
 
 ### 2. Slack Incoming Webhook
 1. Go to [api.slack.com/apps](https://api.slack.com/apps) -> **Incoming Webhooks** -> **Activate Incoming Webhooks**.
@@ -296,17 +337,20 @@ The container automatically mounts `./data` as a persistent volume for the SQLit
 
 ## 🧪 Automated Tests
 
-Run the full pytest suite:
+Run the full pytest suite (using isolated test databases and mock server fixtures for 100% offline CI/CD reliability):
 ```bash
 pytest -v tests/
 ```
 
 Tests cover:
-* Canonical domain normalization (subdomains, ports, query stripping)
-* Phone number normalization
-* Multi-factor deduplication and field enrichment
-* FastAPI webhook trigger and ingest endpoints
-* Data integrity of directory targets
+* Canonical domain normalization (subdomains, ports, auth, query stripping)
+* Phone number normalization with office extensions (`ext 102`, `x108`, `#5`)
+* Disambiguation of identical business names across different cities
+* Dynamic duplicate enrichment of missing fields (email, address, ratings, LinkedIn)
+* FastAPI `HTTP 202 Accepted` response on `/webhook/trigger`
+* Webhook security authentication via `X-API-Key`
+* Input schema validation (422) and 404 handling
+* Playwright DOM selector extraction & route interception
 
 ---
 
