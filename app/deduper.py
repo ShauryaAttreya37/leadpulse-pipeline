@@ -112,7 +112,8 @@ class LeadDeduper:
         if len(digits) == 10:
             return f"({digits[0:3]}) {digits[3:6]}-{digits[6:10]}{ext_str}"
         elif len(digits) == 11 and digits.startswith("1"):
-            return f"+1 ({digits[1:4]}) {digits[4:7]}-{digits[7:11]}{ext_str}"
+            # Strip leading country code 1 to format US numbers consistently as (XXX) XXX-XXXX
+            return f"({digits[1:4]}) {digits[4:7]}-{digits[7:11]}{ext_str}"
         elif len(digits) >= 7:
             return f"+{digits}{ext_str}"
         return None

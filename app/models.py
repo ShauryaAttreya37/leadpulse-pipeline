@@ -40,6 +40,7 @@ class ScrapeJobRequest(BaseModel):
     target: str = Field(default="real_estate", description="Target niche / scraper type")
     query: str = Field(default="Commercial Real Estate Agencies", description="Directory search keyword")
     location: str = Field(default="Austin, TX", description="City / state market location")
+    limit: Optional[int] = Field(default=None, ge=1, le=500, description="Max agencies to process in batch")
     max_pages: int = Field(default=2, ge=1, le=10, description="Max directory pages to crawl")
     enrich_contacts: bool = Field(default=True, description="Visit agency websites to enrich email and social links")
     target_url: Optional[str] = Field(None, description="Custom directory URL (overrides default or mock)")

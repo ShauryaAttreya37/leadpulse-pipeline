@@ -26,8 +26,8 @@ def test_domain_normalization():
 def test_phone_normalization():
     assert LeadDeduper.normalize_phone("(512) 555-0142") == "(512) 555-0142"
     assert LeadDeduper.normalize_phone("512.555.0142") == "(512) 555-0142"
-    assert LeadDeduper.normalize_phone("1-512-555-0142") == "+1 (512) 555-0142"
-    assert LeadDeduper.normalize_phone("+1 512 555 0142") == "+1 (512) 555-0142"
+    assert LeadDeduper.normalize_phone("1-512-555-0142") == "(512) 555-0142"
+    assert LeadDeduper.normalize_phone("+1 512 555 0142") == "(512) 555-0142"
 
 
 def test_deduplication_exact_and_fuzzy(temp_deduper):

@@ -127,8 +127,14 @@ async def execute_scraping_pipeline(job_id: str, request: ScrapeJobRequest):
             enrich_contacts=request.enrich_contacts
         )
 
+        total_discovered = len(raw_leads)
+        if request.limit and request.limit > 0:
+            logger.info(f"[{job_id}] Discovered {total_discovered} live brokerages. Running demo batch (limit={request.limit})...")
+            raw_leads = raw_leads[:request.limit]
+        else:
+            logger.info(f"[{job_id}] Discovered {total_discovered} live brokerages. Processing deduplication...")
+
         job["total_found"] = len(raw_leads)
-        logger.info(f"[{job_id}] Playwright scraped {len(raw_leads)} agency records. Processing deduplication...")
 
         new_leads: List[LeadRecord] = []
         duplicate_count = 0

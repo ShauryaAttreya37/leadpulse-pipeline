@@ -36,8 +36,8 @@ def test_phone_normalization_edge_cases():
     assert LeadDeduper.normalize_phone("(512) 555-0142 ext. 42") == "(512) 555-0142 ext 42"
     assert LeadDeduper.normalize_phone("512-555-0142 x108") == "(512) 555-0142 ext 108"
     assert LeadDeduper.normalize_phone("512.555.0142 #5") == "(512) 555-0142 ext 5"
-    # 11-digit number with country code 1
-    assert LeadDeduper.normalize_phone("1 (512) 555-0199") == "+1 (512) 555-0199"
+    # 11-digit number with country code 1 (normalizes consistently to (XXX) XXX-XXXX)
+    assert LeadDeduper.normalize_phone("1 (512) 555-0199") == "(512) 555-0199"
     # Clean 10 digits without punctuation
     assert LeadDeduper.normalize_phone("5125550199") == "(512) 555-0199"
     # Invalid / empty cases

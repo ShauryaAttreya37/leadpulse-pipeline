@@ -156,7 +156,7 @@ const LEADS = [
   { id: 3, name: "HPI Real Estate Services", cat: "Commercial Brokerage", domain: "hpitx.com", phone: "(512) 835-4455", email: "info@hpitx.com", loc: "Austin, TX", rating: "⭐ 4.9 (42 reviews)" },
   { id: 4, name: "Alterman Inc.", cat: "Commercial Contracting", domain: "goalterman.com", phone: "(210) 496-6888", email: "marketing@goalterman.com", loc: "Austin, TX", rating: "⭐ 4.7 (28 reviews)" },
   { id: 5, name: "AGILE INTERIORS", cat: "Commercial Brokerage", domain: "agileinteriors.com", phone: "(713) 629-5599", email: "info@agileinteriors.com", loc: "Austin, TX", rating: "⭐ 4.8 (19 reviews)" },
-  { id: 6, name: "American Bank of Commerce", cat: "Capital & Investment", domain: "theabcbank.com", phone: "+1 (888) 902-2552", email: "info@theabcbank.com", loc: "Austin, TX", rating: "⭐ 4.6 (15 reviews)" }
+  { id: 6, name: "American Bank of Commerce", cat: "Capital & Investment", domain: "theabcbank.com", phone: "(888) 902-2552", email: "info@theabcbank.com", loc: "Austin, TX", rating: "⭐ 4.6 (15 reviews)" }
 ];
 
 function setTab(name) {
@@ -174,7 +174,7 @@ async function runDemo() {
   const statusLeft = document.getElementById("status-left");
 
   // Step 1: Type curl command
-  const fullCmd = "curl -X POST http://localhost:8000/webhook/trigger -H 'X-API-Key: prod_sec_key' -d '{\\"query\\":\\"Commercial Real Estate\\",\\"location\\":\\"Austin, TX\\"}'";
+  const fullCmd = "curl -X POST http://localhost:8000/webhook/trigger -H 'Content-Type: application/json' -H 'X-API-Key: prod_sec_key' -d '{\\"query\\":\\"Commercial Real Estate\\",\\"location\\":\\"Austin, TX\\",\\"limit\\":7}'";
   for (let i = 0; i < fullCmd.length; i += 3) {
     typingEl.textContent = fullCmd.slice(0, i);
     await sleep(25);
@@ -190,7 +190,7 @@ async function runDemo() {
 
   // Step 3: Stream live crawl & dedupe logs
   termLogs.innerHTML += `<div><span class="cyan">[LeadPulse.Scraper]</span> Navigating to live directory: https://www.reca.org/corporate--elite-member-companies.html</div>`;
-  termLogs.innerHTML += `<div><span class="cyan">[LeadPulse.Scraper]</span> Discovered 179 live brokerages. Running bounded enrichment (asyncio.Semaphore(5), timeout=8s)...</div><br>`;
+  termLogs.innerHTML += `<div><span class="cyan">[LeadPulse.Scraper]</span> Discovered 179 live brokerages. Running demo batch (limit=7)...</div><br>`;
   await sleep(500);
 
   let sheetsBody = document.getElementById("sheet-body");

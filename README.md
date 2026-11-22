@@ -197,7 +197,7 @@ ID   | Business Name                      | Phone              | Email
 2    | AGILE INTERIORS                    | (713) 629-5599     | info@agileinteriors.com  
 3    | Allen Boone Humphries Robinson LLP | (512) 518-2424     | austin@abhr.com
 4    | Alterman Inc.                      | (210) 496-6888     | marketing@goalterman.com 
-5    | American Bank of Commerce          | +1 (888) 902-2552  | info@theabcbank.com
+5    | American Bank of Commerce          | (888) 902-2552     | info@theabcbank.com
 6    | American Structurepoint, Inc.       | (512) 346-6700     | press@structurepoint.com
 ================================================================================
 📊 Total Stored Leads: 8
@@ -238,6 +238,7 @@ curl -X POST "http://localhost:8000/webhook/trigger" \
     "target": "real_estate",
     "query": "Commercial Real Estate Agencies",
     "location": "Austin, TX",
+    "limit": 10,
     "max_pages": 1,
     "enrich_contacts": true,
     "sync_to_sheets": true,
