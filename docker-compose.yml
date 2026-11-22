@@ -1,0 +1,31 @@
+version: "3.8"
+
+services:
+  leadpulse:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: leadpulse-service
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_ENV=production
+      - HOST=0.0.0.0
+      - PORT=8000
+      - PLAYWRIGHT_HEADLESS=true
+      - BLOCK_ASSETS=true
+      - GOOGLE_SHEET_TITLE=B2B Real Estate Agencies - Clean Leads
+      - ENABLE_SIMULATION_FALLBACK=true
+    env_file:
+      - .env
+    volumes:
+      # Persistent SQLite lead database and sync audit logs
+      - ./data:/app/data
+      # Optional: Mount Google Service Account credentials JSON
+      - ./service_account.json:/app/service_account.json:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
